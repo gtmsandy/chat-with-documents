@@ -1,132 +1,247 @@
-# Chat With Documents
+# 📚 Chat With Documents
 
-[![Streamlit App](https://img.shields.io/badge/Streamlit-Deployed-blue)](https://chat-with-documents-billy.streamlit.app/)  
-[![GitHub Repo](https://img.shields.io/badge/GitHub-Repo-blue)](https://github.com/billy-enrizky/chat-with-documents)
+A **Retrieval-Augmented Generation (RAG)** application that lets users chat with their own documents and web content using Large Language Models.
 
-**Open it Here!**
-
-[Open it Here](https://chat-with-documents-billy.streamlit.app/)
+Built with **Python, Streamlit, LangChain, Hugging Face embeddings, and ChromaDB**, the application retrieves relevant information from uploaded sources and uses it as context when generating responses.
 
 ![App Screenshot](app.png)
 
-## Overview
+---
 
-**Chat With Documents** is a Streamlit application that leverages Retrieval-Augmented Generation (RAG) to enable interactive, context-aware conversations with large language models (LLMs). Users can upload documents or provide URLs, and the app indexes the content using a vector store (Chroma) to supply relevant context during chats. The app supports multiple LLM providers including OpenAI, GROQ, and Anthropic.
+## 🚀 Features
 
-## Features
-
-- **Interactive Chat Interface:** Engage in a conversation with an LLM enhanced with contextual information from your documents.
-- **Document Upload:** Upload files in PDF, TXT, DOCX, or Markdown formats.
-- **URL Integration:** Extract and index content directly from webpages.
-- **RAG (Retrieval-Augmented Generation):** Combines LLM responses with relevant document context.
-- **Multiple LLM Providers:** Choose between OpenAI, GROQ, and Anthropic models.
-- **Streaming Responses:** Experience real-time streaming responses for a fluid chat experience.
-- **Vector Store Integration:** Uses Chroma for indexing and retrieving document embeddings.
-
-## Demo
-
-Check out the live deployed app: [Chat With Documents on Streamlit](https://chat-with-documents-billy.streamlit.app/)
-
-## Installation
-
-### Prerequisites
-
-- **Python 3.8+** (tested with Python 3.11)
-- **Git**
-
-### Setup Steps
-
-1. **Clone the Repository:**
-
-   ```bash
-   git clone https://github.com/billy-enrizky/chat-with-documents.git
-   cd chat-with-documents
-   ```
-
-2. **Create and Activate a Virtual Environment:**
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install the Required Dependencies:**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure Environment Variables:**
-
-   ```dotenv
-   OPENAI_API_KEY=your_openai_api_key_here
-   GROQ_API_KEY=your_groq_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
-   ```
-   you can enter these keys via the sidebar in the app.
-
-## Usage
-
-1. **Run the Application:**
-
-   ```bash
-   streamlit run streamlit_app.py
-   ```
-
-2. **Interact with the App:**
-   - **Configure the LLM Provider:** Use the sidebar to select your preferred LLM provider (OpenAI, GROQ, or Anthropic) and model.
-   - **Upload Documents or Enter URLs:** Provide documents (PDF, TXT, DOCX, MD) or URLs to supply context.
-   - **Chat:** Type your message in the chat input. Depending on your settings, the app will use RAG (if enabled and documents are loaded) or a standard LLM chat to respond.
-   - **Toggle RAG:** The "Use RAG" toggle is available in the sidebar once a vector database is initialized with your documents.
-
-## Project Structure
-
-```
-chat-with-documents/
-├── README.md              # This file
-├── requirements.txt       # Python dependencies
-├── streamlit_app.py       # Main Streamlit application
-└── rag_utils.py           # Utility functions for RAG (indexing, document loading, etc.)
-```
-
-## Troubleshooting
-
-### Common Issues
-
-- **`pysqlite3.dbapi2.OperationalError: no such table: collections`**  
-  This error indicates that the Chroma vector store is not correctly initialized. It can occur if an old persisted database is used. To resolve:
-  - **Delete the Persisted Directory:** Modify the `initialize_vector_db` function to remove any existing directory before initializing a new database.
-  - **Run Migration:** Alternatively, follow [Chroma’s migration guide](https://docs.trychroma.com/deployment/migration) to update the schema.
-
-- **`ValueError: Expected Embedings to be non-empty list or numpy array, got [] in upsert.`**  
-  This error occurs if empty document chunks are passed to the embedder. Ensure that document splitting filters out empty or whitespace-only chunks.
-
-- **Torch Module Path Error:**  
-  If you see errors like:
-  ```
-  RuntimeError: Tried to instantiate class '__path__._path', but it does not exist!
-  ```
-  it is due to Streamlit’s local sources watcher inspecting Torch’s custom modules. A monkey-patch can be applied at the very start of your script to safely bypass these errors.
-
-## Contributing
-
-Contributions are welcome! If you’d like to contribute:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/YourFeature`).
-3. Make your changes and commit them (`git commit -m 'Add some feature'`).
-4. Push your branch (`git push origin feature/YourFeature`).
-5. Open a pull request.
-
-For major changes, please open an issue first to discuss what you would like to change.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-For any questions or feedback, please open an issue on the [GitHub repository](https://github.com/billy-enrizky/chat-with-documents) or contact the repository owner.
+- 📄 Upload **PDF, DOCX, TXT, and Markdown** documents
+- 🌐 Load and query content from **URLs**
+- 🔎 Semantic document retrieval using vector embeddings
+- 🧠 **Retrieval-Augmented Generation (RAG)**
+- 💬 History-aware conversational retrieval
+- 🤖 Support for **OpenAI, Groq, and Anthropic** LLM providers
+- ⚡ Streaming AI responses
+- 💾 ChromaDB vector storage
+- 🧩 Local Hugging Face embeddings
+- 🔄 RAG can be enabled or disabled from the interface
+- 🚫 Prevents duplicate sources within the active session
+- 🧹 Filters empty document chunks before embedding
+- 🔐 API keys are supplied at runtime rather than stored in the repository
 
 ---
 
-Enjoy chatting with your documents!
+## 🧠 How It Works
+
+```text
+Document / URL
+      ↓
+Content Loading
+      ↓
+Text Chunking
+      ↓
+Hugging Face Embeddings
+      ↓
+Chroma Vector Database
+      ↓
+Semantic Retrieval
+      ↓
+Relevant Context + User Question
+      ↓
+LLM
+      ↓
+Context-Aware Response
+```
+
+The application uses the **`all-mpnet-base-v2`** embedding model to convert document chunks into vector representations.
+
+When a question is asked, Chroma retrieves semantically relevant chunks and passes them to the selected LLM as additional context.
+
+This allows responses to be grounded in the user's documents instead of relying entirely on the model's pre-trained knowledge.
+
+---
+
+## 🛠️ Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| Python | Core application |
+| Streamlit | Web interface |
+| LangChain | RAG and LLM orchestration |
+| ChromaDB | Vector database |
+| Hugging Face | Local text embeddings |
+| OpenAI | LLM provider |
+| Groq | LLM provider |
+| Anthropic | LLM provider |
+
+---
+
+## 📂 Project Structure
+
+```text
+chat-with-documents/
+│
+├── streamlit_app.py      # Streamlit UI and application flow
+├── rag_utils.py          # Loading, chunking, embeddings and retrieval
+├── requirements.txt      # Python dependencies
+├── app.png               # Application screenshot
+├── .gitignore
+└── README.md
+```
+
+The application may also create runtime directories such as:
+
+```text
+source_files/             # Temporary uploaded files
+chroma_db_*/              # Local Chroma vector stores
+```
+
+These are generated application data and are excluded from Git.
+
+---
+
+## ⚙️ Setup
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/gtmsandy/chat-with-documents.git
+cd chat-with-documents
+```
+
+### 2. Create a virtual environment
+
+**Python 3.11 is recommended.**
+
+```bash
+python -m venv .venv
+```
+
+Activate it on Windows:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Linux/macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run the application
+
+```bash
+streamlit run streamlit_app.py
+```
+
+Streamlit will normally start the application at:
+
+```text
+http://localhost:8501
+```
+
+---
+
+## 🔑 LLM Configuration
+
+Select an LLM provider from the application sidebar:
+
+- **OpenAI**
+- **Groq**
+- **Anthropic**
+
+Provide the API key for the selected provider through the application.
+
+Then upload documents or provide a URL and initialize the knowledge base.
+
+---
+
+## 💬 Example Usage
+
+Upload a document and ask questions such as:
+
+```text
+Summarize this document.
+
+What are the main conclusions?
+
+Explain this section in simpler terms.
+
+What does the document say about this topic?
+
+Compare the important points mentioned in the uploaded sources.
+```
+
+With RAG enabled, the application retrieves relevant document content before generating its response.
+
+---
+
+## 🔄 RAG vs Standard Chat
+
+### RAG Enabled
+
+```text
+Question → Retrieve Relevant Chunks → Add Context → LLM → Answer
+```
+
+Best when asking questions about uploaded documents.
+
+### RAG Disabled
+
+```text
+Question → LLM → Answer
+```
+
+Works as a regular LLM conversation without document retrieval.
+
+---
+
+## ✅ Current Status
+
+The core RAG workflow is functional:
+
+- Document loading
+- URL ingestion
+- Text chunking
+- Local embedding generation
+- Chroma indexing
+- Semantic retrieval
+- Conversational retrieval
+- Multiple LLM providers
+- Streaming responses
+- Temporary file cleanup
+- Duplicate-source protection
+- Empty-chunk validation
+
+The application has also been tested with real document ingestion and retrieval queries.
+
+---
+
+## 🗺️ Planned Improvements
+
+The next improvements are focused on making the project more reliable and production-ready:
+
+- 📌 Source citations and document attribution in answers
+- 🧪 Automated unit and integration tests
+- 🔍 Improved retrieval evaluation
+- 🗂️ Better Chroma database lifecycle and cleanup
+- 🔐 Stronger URL validation and input security
+- 📊 Application logging and error monitoring
+- 📦 Cleaner and more tightly managed dependencies
+- 🎯 Improved model and retrieval configuration
+
+---
+
+## 👨‍💻 Author
+
+**Sandeep Harijan**
+
+Final-year Computer Science & Engineering student interested in **Software Engineering, Generative AI, Retrieval-Augmented Generation, and Full-Stack Development**.
+
+GitHub: [@gtmsandy](https://github.com/gtmsandy)
+
+---
+
+⭐ If you find the project useful, consider starring the repository.
