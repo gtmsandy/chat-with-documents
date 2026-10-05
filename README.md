@@ -234,14 +234,10 @@ The next improvements are focused on making the project more reliable and produc
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Maintained & Extended By
 
-**Sandeep Harijan**
+**Sandeep Harijan** — [@gtmsandy](https://github.com/gtmsandy)
 
-Final-year Computer Science & Engineering student interested in **Software Engineering, Generative AI, Retrieval-Augmented Generation, and Full-Stack Development**.
-
-GitHub: [@gtmsandy](https://github.com/gtmsandy)
+This project builds upon an existing open-source implementation and has been further developed with improvements to the RAG workflow, local embeddings, Chroma vector-store handling, conversational retrieval, runtime data management, and project maintainability.
 
 ---
-
-⭐ If you find the project useful, consider starring the repository.
