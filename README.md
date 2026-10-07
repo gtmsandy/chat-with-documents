@@ -31,7 +31,7 @@ Check out the live deployed app: [Chat With Documents on Streamlit](https://chat
 
 ### Prerequisites
 
-- **Python 3.8+** (tested with Python 3.11)
+- **Python 3.11** (tested with Python 3.11.9)
 - **Git**
 
 ### Setup Steps
@@ -43,17 +43,23 @@ Check out the live deployed app: [Chat With Documents on Streamlit](https://chat
    cd chat-with-documents
    ```
 
-2. **Create and Activate a Virtual Environment:**
+2. **Create and activate a virtual environment:**
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```powershell
+   py -3.11 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+   If PowerShell blocks activation, run the command below for the current shell and retry:
+
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
    ```
 
 3. **Install the Required Dependencies:**
 
-   ```bash
-   pip install -r requirements.txt
+   ```powershell
+   python -m pip install --no-cache-dir -r requirements.txt
    ```
 
 4. **Configure Environment Variables:**
@@ -69,8 +75,8 @@ Check out the live deployed app: [Chat With Documents on Streamlit](https://chat
 
 1. **Run the Application:**
 
-   ```bash
-   streamlit run streamlit_app.py
+   ```powershell
+   python -m streamlit run streamlit_app.py
    ```
 
 2. **Interact with the App:**
