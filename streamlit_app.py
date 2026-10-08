@@ -9,16 +9,13 @@ if os.name == 'posix':
     import sys
     sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
-from langchain_openai import ChatOpenAI, AzureChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_groq import ChatGroq
-from langchain.schema import HumanMessage, AIMessage
-
 from rag_utils import (
+    create_chat_model,
     load_doc_to_db, 
     load_url_to_db,
     stream_llm_response,
     stream_llm_rag_response,
+    to_langchain_messages,
 )
 
 load_dotenv()
@@ -54,15 +51,11 @@ def render_sidebar():
                 model = st.selectbox(
                     "Select GROQ Model",
                     [
-                        "qwen-2.5-32b",
-                        "deepseek-r1-distill-qwen-32b",
-                        "deepseek-r1-distill-llama-70b",
-                        "llama-3.3-70b-versatile",
-                        "llama-3.1-8b-instant",
+                        "openai/gpt-oss-20b",
                         "Custom"
                     ],
                     index=0,
-                    help="Choose from GROQ's available models. All these models support tool use and parallel tool use."
+                    help="Choose a Groq model or enter a custom model string."
                 )
                 if model == "Custom":
                     model = st.text_input(
@@ -121,6 +114,18 @@ def render_sidebar():
                     os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
                 
     return {"provider": provider, "model": model}
+
+
+def render_sources(sources):
+    if not sources:
+        return
+
+    st.caption("Sources")
+    for citation in sources:
+        label = citation["source"]
+        if citation.get("page"):
+            label += f" — page {citation['page']}"
+        st.caption(f"• {label}")
 
 
 # --- Page Configuration & Header ---
@@ -199,34 +204,24 @@ with st.sidebar:
     with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
         st.write([] if not is_vector_db_loaded else st.session_state.rag_sources)
     
-    # Initialize the appropriate LLM stream based on the provider
-    if selection["provider"] == "OpenAI":
-        llm_stream = ChatOpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY"),
-            model_name=selection["model"],
-            temperature=0,
-            streaming=True,
-        )
-    elif selection["provider"] == "GROQ":
-        llm_stream = ChatGroq(
-            api_key=os.environ.get("GROQ_API_KEY"),
-            model=selection["model"],
-            temperature=0,
-            streaming=True,
-        )
-    elif selection["provider"] == "Anthropic":
-        llm_stream = ChatAnthropic(
-            api_key=os.environ.get("ANTHROPIC_API_KEY"),
-            model=selection["model"],
-            temperature=0,
-            streaming=True,
-        )
+    api_key_env = {
+        "OpenAI": "OPENAI_API_KEY",
+        "GROQ": "GROQ_API_KEY",
+        "Anthropic": "ANTHROPIC_API_KEY",
+    }
+    llm_stream = create_chat_model(
+        selection["provider"],
+        selection["model"],
+        os.environ.get(api_key_env[selection["provider"]]),
+    )
 
 
 # --- Chat Display ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        if message["role"] == "assistant":
+            render_sources(message.get("sources", []))
 
 
 # --- Chat Input and Streaming Response ---
@@ -236,18 +231,15 @@ if prompt := st.chat_input("Your message"):
         st.markdown(prompt)
     
     with st.chat_message("assistant"):
-        # Prepare a placeholder for streaming output
-        message_placeholder = st.empty()
-        full_response = ""
-        
         # Convert the chat history to LangChain message objects
-        messages = [
-            HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"])
-            for m in st.session_state.messages
-        ]
+        messages = to_langchain_messages(st.session_state.messages)
 
-        # Choose the appropriate stream: RAG or standard LLM
-        if not st.session_state.use_rag:
-            st.write_stream(stream_llm_response(llm_stream, messages))
-        else:
-            st.write_stream(stream_llm_rag_response(llm_stream, messages))
+        try:
+            if not st.session_state.use_rag:
+                st.write_stream(stream_llm_response(llm_stream, messages))
+            else:
+                st.write_stream(stream_llm_rag_response(llm_stream, messages))
+                render_sources(st.session_state.messages[-1].get("sources", []))
+        except Exception as error:
+            print(f"{selection['provider']} request failed: {type(error).__name__}")
+            st.error("The model request failed. Check the provider, model, and API key, then try again.")

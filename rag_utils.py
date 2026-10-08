@@ -2,6 +2,7 @@ import os
 import shutil
 from dotenv import load_dotenv
 from time import time
+from urllib.parse import urlparse
 import streamlit as st
 import chromadb
 from langchain_community.document_loaders.text import TextLoader
@@ -13,9 +14,12 @@ from langchain_community.document_loaders import (
 
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, AzureOpenAIEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings, AzureOpenAIEmbeddings
+from langchain_anthropic import ChatAnthropic
+from langchain_groq import ChatGroq
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
@@ -23,6 +27,23 @@ load_dotenv()
 
 os.environ["USER_AGENT"] = "myagent"
 DB_DOCS_LIMIT = 10
+
+
+def create_chat_model(provider, model, api_key):
+    """Create a chat model from the selected provider, never the model namespace."""
+    options = {"api_key": api_key, "temperature": 0, "streaming": True}
+
+    if provider.lower() == "groq":
+        return ChatGroq(
+            model=model,
+            **options,
+        )
+    if provider.lower() == "openai":
+        return ChatOpenAI(model_name=model, **options)
+    if provider.lower() == "anthropic":
+        return ChatAnthropic(model=model, **options)
+
+    raise ValueError(f"Unsupported provider: {provider}")
 
 def stream_llm_response(llm_stream, messages):
     response_message = ""
@@ -155,9 +176,12 @@ def load_url_to_db():
 def _get_context_retriever_chain(vector_db, llm):
     retriever = vector_db.as_retriever()
     prompt = ChatPromptTemplate.from_messages([
-        MessagesPlaceholder(variable_name="messages"),
+        ("system", """Given the conversation history and the latest user question,
+        write a standalone search query for retrieving relevant document passages.
+        Resolve references such as pronouns or 'that pattern' using the conversation.
+        Return only the search query."""),
+        MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
-        ("user", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation, focusing on the most recent messages."),
     ])
     
     retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
@@ -168,11 +192,14 @@ def get_conversational_rag_chain(llm):
     
     prompt = ChatPromptTemplate.from_messages([
         ("system",
-        """You are a helpful assistant. You will have to answer user's queries.
-        You will have some context to help with your answers, though it might not always be completely related or sufficient.
-        You can also use your general knowledge to assist in answering the queries.\n
+        """Answer using only the retrieved document context below. Do not use general
+        knowledge, guess, or infer facts that are not supported by the context. If the
+        retrieved context does not contain enough information to answer the question,
+        say: \"The uploaded documents do not contain enough information to answer this.\"
+
+        Retrieved document context:
         {context}"""),
-        MessagesPlaceholder(variable_name="messages"),
+        MessagesPlaceholder(variable_name="chat_history"),
         ("user", "{input}"),
     ])
     
@@ -181,18 +208,69 @@ def get_conversational_rag_chain(llm):
     return create_retrieval_chain(retriever_chain, stuff_documents_chain)
 
 def stream_llm_rag_response(llm_stream, messages):
-    # Initialize the response message
     response_message = ""
     conversation_rag_chain = get_conversational_rag_chain(llm_stream)
+    retrieved_documents = []
     
-    # Stream the answer chunks, concatenating them to form the full response
-    for chunk in conversation_rag_chain.pick("answer").stream({
-        "messages": messages[:-1],
+    for chunk in conversation_rag_chain.stream({
+        "chat_history": messages[:-1],
         "input": messages[-1].content
     }):
-        # If the chunk has a 'content' attribute, use it; otherwise, assume it's a string.
-        content = chunk.content if hasattr(chunk, "content") else chunk
-        response_message += content
-        yield chunk
+        if "context" in chunk:
+            retrieved_documents = chunk["context"]
 
-    st.session_state.messages.append({"role": "assistant", "content": response_message})
+        if "answer" in chunk:
+            answer_chunk = chunk["answer"]
+            content = answer_chunk.content if hasattr(answer_chunk, "content") else answer_chunk
+            response_message += content
+            yield answer_chunk
+
+    evidence = [
+        {"page_content": document.page_content, "metadata": document.metadata}
+        for document in retrieved_documents
+    ]
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": response_message,
+        "sources": get_source_citations(retrieved_documents),
+        "evidence": evidence,
+    })
+
+
+def get_source_citations(documents):
+    """Return unique, display-safe source and page labels for retrieved documents."""
+    citations = []
+    seen = set()
+
+    for document in documents:
+        metadata = document.metadata or {}
+        source = str(metadata.get("source", ""))
+        parsed_url = urlparse(source)
+        if parsed_url.scheme and parsed_url.netloc:
+            source_label = os.path.basename(parsed_url.path) or parsed_url.netloc
+        else:
+            source_label = os.path.basename(source.replace("\\", "/"))
+
+        if not source_label:
+            continue
+
+        page = metadata.get("page_label")
+        if page is None and isinstance(metadata.get("page"), int):
+            page = metadata["page"] + 1
+
+        citation = (source_label, str(page) if page is not None else None)
+        if citation not in seen:
+            seen.add(citation)
+            citations.append({"source": citation[0], "page": citation[1]})
+
+    return citations
+
+
+def to_langchain_messages(messages):
+    """Convert stored chat messages to text-only LangChain history."""
+    return [
+        HumanMessage(content=message["content"])
+        if message["role"] == "user"
+        else AIMessage(content=message["content"])
+        for message in messages
+    ]
