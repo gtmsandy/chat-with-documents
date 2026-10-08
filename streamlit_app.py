@@ -86,7 +86,7 @@ def render_sidebar():
                         help="Specify your custom model string"
                     )
         with st.expander("🔑 API Keys", expanded=True):
-            st.info("API keys are stored temporarily in memory and cleared when you close the browser.")
+            st.info("API keys are kept in the running app process and are not written to the repository.")
             if provider == "OpenAI":
                 openai_api_key = st.text_input(
                     "OpenAI API Key",

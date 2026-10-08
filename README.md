@@ -24,10 +24,12 @@ Built with **Python, Streamlit, LangChain, Hugging Face embeddings, and ChromaDB
 - 🧩 Local Hugging Face embeddings
 - 🔄 RAG can be enabled or disabled from the interface
 - 🚫 Prevents duplicate sources within the active session
+- 💬 **Clear Chat** removes conversation messages while preserving indexed documents
+- 🧹 **Clear Documents** resets the current session's knowledge base and allows the same source to be uploaded again
 - 🧹 Filters empty document chunks before embedding
 - 🔐 API keys are supplied at runtime rather than stored in the repository
 - 🔀 Provider-specific LLM routing
-- ✅ Automated regression tests for citations, conversation history, contextualized retrieval, and provider routing
+- ✅ Automated regression tests for citations, conversation history, contextualized retrieval, provider routing, and session-scoped cleanup
 
 ---
 
@@ -117,8 +119,8 @@ chat-with-documents/
 The application may also create runtime directories such as:
 
 ```text
-source_files/             # Temporary uploaded files
-chroma_db_*/              # Local Chroma vector stores
+source_files/<session-id>/    # Temporary per-session uploaded files
+chroma_db_<session-id>/       # Per-session local Chroma vector store
 ```
 
 These directories contain generated runtime data and are excluded from Git.
@@ -300,6 +302,19 @@ Works as a regular LLM conversation without document retrieval or document-groun
 
 ---
 
+## 🧹 Document and Chat Lifecycle
+
+The sidebar provides two separate reset actions:
+
+- **Clear Chat** removes conversation messages only. Indexed documents remain available, so RAG can continue using the existing knowledge base.
+- **Clear Documents** releases the current vector store, disables RAG, clears tracked sources and citation/evidence metadata, and removes only the current session's Chroma and temporary-source directories.
+
+After **Clear Documents**, the document count returns to zero and the same file or URL can be indexed again without restarting the application. Provider selection and normal non-RAG chat remain available.
+
+Cleanup paths are derived from the current session identifier. Other sessions' Chroma directories are not removed. If Windows temporarily prevents physical deletion because a file is locked, the application resets its in-memory document state and displays a warning.
+
+---
+
 ## ✅ Current Status
 
 The core RAG workflow is functional.
@@ -329,6 +344,10 @@ Implemented and verified functionality includes:
 - Provider-specific LLM routing
 - Streaming responses
 - RAG / standard-chat switching
+- Clear Chat while preserving indexed documents
+- Current-session Clear Documents / knowledge-base reset
+- Session-scoped Chroma and temporary-source cleanup
+- Same-source re-upload after a document reset
 - Reproducible Python 3.11 dependency setup
 - Automated regression tests
 
@@ -356,7 +375,6 @@ Unsupported questions were also tested to verify that the application refuses to
 
 Future improvements are focused on production hardening and retrieval quality:
 
-- 🗂️ Better Chroma database lifecycle and explicit document cleanup
 - 🔍 Retrieval evaluation and relevance measurement
 - 🎯 Retrieval tuning and optional reranking
 - 🔐 Stronger URL validation and SSRF protection
@@ -380,6 +398,7 @@ This project builds upon an existing open-source implementation and has been fur
 - strict document grounding
 - source and page citations
 - LLM provider routing
+- document and session lifecycle controls
 - reproducible dependency management
 - automated regression testing
 - application reliability and maintainability
