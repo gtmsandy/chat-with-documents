@@ -10,6 +10,8 @@ if os.name == 'posix':
     sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from rag_utils import (
+    clear_chat_state,
+    clear_documents,
     create_chat_model,
     load_doc_to_db, 
     load_url_to_db,
@@ -146,6 +148,9 @@ if "session_id" not in st.session_state:
 if "rag_sources" not in st.session_state:
     st.session_state.rag_sources = []
 
+if "rag_docs_key" not in st.session_state:
+    st.session_state.rag_docs_key = 0
+
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "user", "content": "Hello"},
@@ -185,15 +190,24 @@ with st.sidebar:
             disabled=not is_vector_db_loaded,
         )
     with cols0[1]:
-        st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
+        st.button(
+            "Clear Chat",
+            on_click=clear_chat_state,
+            args=(st.session_state,),
+            type="primary",
+        )
+
+    st.button("Clear Documents", on_click=clear_documents)
     
     st.header("RAG Sources:")
+    upload_key = f"rag_docs_{st.session_state.rag_docs_key}"
     st.file_uploader(
         "📄 Upload a document", 
         type=["pdf", "txt", "docx", "md"],
         accept_multiple_files=True,
         on_change=load_doc_to_db,
-        key="rag_docs",
+        args=(upload_key,),
+        key=upload_key,
     )
     st.text_input(
         "🌐 Introduce a URL", 
